@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: ui
-          image: dandiazc/mlops-pf-ui:p4
+          # Imagen publicada por el CI en DockerHub; el tag lo fija kustomize.
+          image: dandiazc/mlops-pf-ui:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8501

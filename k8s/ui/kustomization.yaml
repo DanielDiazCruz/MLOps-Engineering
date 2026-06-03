@@ -5,3 +5,8 @@ resources:
   - configmap.yaml
   - deployment.yaml
   - service.yaml
+
+# El tag lo actualiza el CI (job bump-manifests) al SHA del commit construido.
+images:
+  - name: dandiazc/mlops-pf-ui
+    newTag: latest

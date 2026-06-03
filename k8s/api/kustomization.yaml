@@ -8,3 +8,9 @@ resources:
   - secret.yaml
   - service.yaml
   - deployment.yaml
+
+# El tag lo actualiza el CI (job bump-manifests) al SHA del commit construido,
+# para que Argo CD despliegue exactamente la imagen publicada en DockerHub.
+images:
+  - name: dandiazc/mlops-pf-api
+    newTag: latest

@@ -24,7 +24,9 @@ spec:
     spec:
       containers:
         - name: api
-          image: dandiazc/mlops-pf-api:p4c
+          # Imagen publicada por el CI en DockerHub. El tag lo fija kustomize
+          # (ver kustomization.yaml -> images) y el CI lo actualiza al SHA.
+          image: dandiazc/mlops-pf-api:latest
           imagePullPolicy: IfNotPresent
           # Override CMD para forzar 2 workers de uvicorn sin rebuild de la imagen.
           # Con 1 worker el event loop se bloquea durante /predict (inferencia

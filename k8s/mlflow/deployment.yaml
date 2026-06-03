@@ -17,7 +17,8 @@ spec:
     spec:
       containers:
         - name: mlflow
-          image: dandiazc/mlops-mlflow:v0.1.0
+          # Imagen propia publicada por el CI en DockerHub; el tag lo fija kustomize.
+          image: dandiazc/mlops-pf-mlflow:latest
           ports:
             - containerPort: 5000
               name: http

@@ -69,10 +69,8 @@ env:
     value: "http://mlflow-service.mlops.svc.cluster.local:5000"
   - name: MLFLOW_S3_ENDPOINT_URL
     value: "http://minio-service.mlops.svc.cluster.local:9000"
-  - name: SOURCE_CSV
-    value: "/opt/airflow/data/Diabetes.csv"
-  - name: BATCH_SIZE
-    value: "15000"
+  # La fuente de datos del Proyecto Final es la API externa (DATA_API_URL),
+  # no un CSV. SOURCE_CSV/BATCH_SIZE quedaron obsoletos y se eliminaron.
 
 # Credentials injected from Kubernetes Secret (not stored in plain text here).
 extraEnvFrom: |

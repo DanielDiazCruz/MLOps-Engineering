@@ -12,6 +12,24 @@ import os
 from dataclasses import dataclass
 
 
+def _require(name: str) -> str:
+    """Lee una variable de entorno sensible o falla con un mensaje claro.
+
+    Las credenciales (DSN de Postgres, llaves de MinIO) NO tienen valor por
+    defecto en el código: deben inyectarse vía Secret de Kubernetes
+    (`secretRef`/`envFrom`) o exportarse a mano en local. Así no queda ninguna
+    credencial hardcodeada en el repositorio.
+    """
+    value = os.environ.get(name)
+    if not value:
+        raise RuntimeError(
+            f"falta la variable de entorno requerida '{name}'. "
+            "Inyéctala con un Secret de Kubernetes (en el cluster) o expórtala "
+            "antes de ejecutar localmente."
+        )
+    return value
+
+
 @dataclass(frozen=True)
 class Settings:
     # Conexión a PostgreSQL (datos raw / clean / inferencias / auditoría)
@@ -50,10 +68,8 @@ def load() -> Settings:
     cluster de Kubernetes (resoluciones tipo `*.mlops.svc.cluster.local`).
     """
     return Settings(
-        pg_dsn=os.environ.get(
-            "PG_DSN",
-            "postgresql://mlops_user:mlops_pass_2026@postgres-service.mlops.svc.cluster.local:5432/mlops",
-        ),
+        # Credenciales: requeridas, sin default en código (vienen de Secrets).
+        pg_dsn=_require("PG_DSN"),
         mlflow_tracking_uri=os.environ.get(
             "MLFLOW_TRACKING_URI",
             "http://mlflow-service.mlops.svc.cluster.local:5000",
@@ -62,8 +78,8 @@ def load() -> Settings:
             "MLFLOW_S3_ENDPOINT_URL",
             "http://minio-service.mlops.svc.cluster.local:9000",
         ),
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", "minioadmin"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", "minioadmin123"),
+        aws_access_key_id=_require("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=_require("AWS_SECRET_ACCESS_KEY"),
         data_api_url=os.environ.get(
             "DATA_API_URL",
             "http://data-api-service.mlops.svc.cluster.local",

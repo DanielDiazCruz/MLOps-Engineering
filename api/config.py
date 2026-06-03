@@ -11,6 +11,22 @@ import os
 from dataclasses import dataclass
 
 
+def _require(name: str) -> str:
+    """Lee una variable de entorno sensible o falla con un mensaje claro.
+
+    Las credenciales (DSN de Postgres, llaves de MinIO) NO tienen valor por
+    defecto en el código: se inyectan vía Secret de Kubernetes (`secretRef`).
+    Así no queda ninguna credencial hardcodeada en el repositorio.
+    """
+    value = os.environ.get(name)
+    if not value:
+        raise RuntimeError(
+            f"falta la variable de entorno requerida '{name}'. "
+            "Inyéctala con un Secret de Kubernetes o expórtala en local."
+        )
+    return value
+
+
 @dataclass(frozen=True)
 class Settings:
     # DSN de PostgreSQL para registrar cada inferencia.
@@ -37,10 +53,8 @@ def load() -> Settings:
     lee de allí directamente.
     """
     s = Settings(
-        pg_dsn=os.environ.get(
-            "PG_DSN",
-            "postgresql://mlops_user:mlops_pass_2026@postgres-service.mlops.svc.cluster.local:5432/mlops",
-        ),
+        # Credenciales: requeridas, sin default en código (vienen de Secrets).
+        pg_dsn=_require("PG_DSN"),
         mlflow_tracking_uri=os.environ.get(
             "MLFLOW_TRACKING_URI",
             "http://mlflow-service.mlops.svc.cluster.local:5000",
@@ -49,8 +63,8 @@ def load() -> Settings:
             "MLFLOW_S3_ENDPOINT_URL",
             "http://minio-service.mlops.svc.cluster.local:9000",
         ),
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", "minioadmin"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", "minioadmin123"),
+        aws_access_key_id=_require("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=_require("AWS_SECRET_ACCESS_KEY"),
         registered_model_name=os.environ.get("MLFLOW_MODEL_NAME", "property-price-regressor"),
         champion_alias=os.environ.get("CHAMPION_ALIAS", "champion"),
         model_cache_ttl_seconds=int(os.environ.get("MODEL_CACHE_TTL_SECONDS", "300")),

@@ -26,10 +26,18 @@ webserverSecretKey: "mlops2026-stable-secret-key-proyecto2"
 # v2.3.0: preprocess y split son INCREMENTALES (solo procesan/escriben el
 # batch nuevo, no todo el acumulado). Antes reescribían las ~75k filas de
 # clean cada run (~20-29 s c/u). Ver scripts/profile_preprocess.py.
+# Proyecto FINAL (regresión inmobiliaria): imágenes NUEVAS, no se sobrescriben
+# las del proyecto pasado (dandiazc/mlops-airflow). GitHub Actions publicará
+# por SHA.
+# OJO (Docker Desktop + containerd): docker y K8s usan namespaces distintos
+# (moby vs k8s.io). Reconstruir el MISMO tag no refresca el pod (IfNotPresent
+# reusa el digest cacheado en k8s.io). Para iterar localmente hay que usar un
+# TAG NUEVO en cada build (p3, p4, ...) y apuntar los workloads a él.
+# p3: fase 3 — decisión automática de entrenar (RF4) + audit.training_history.
 images:
   airflow:
-    repository: dandiazc/mlops-airflow
-    tag: v2.3.0
+    repository: dandiazc/mlops-pf-airflow
+    tag: p3
     pullPolicy: IfNotPresent
 
 # Re-use the project's PostgreSQL (DB `airflow` created by phase 1 init.sql).

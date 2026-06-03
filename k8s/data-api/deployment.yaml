@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-api
+  namespace: mlops
+  labels:
+    app: data-api
+spec:
+  # Fuente de datos externa del proyecto (no la desarrollamos nosotros).
+  # Imagen pública del docente. Es stateful en memoria (lleva el cursor de
+  # lotes por grupo), por eso 1 réplica.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-api
+  template:
+    metadata:
+      labels:
+        app: data-api
+    spec:
+      containers:
+        - name: data-api
+          image: cristiandiaz13/mlops-puj:data-api-pf-v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+              name: http
+          resources:
+            requests:
+              cpu: 250m
+              # Sirve lotes grandes (100k+ filas) cargados en memoria.
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1500Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6

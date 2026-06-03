@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class Settings:
-    # Conexión a PostgreSQL (datos raw / clean / inferencias)
+    # Conexión a PostgreSQL (datos raw / clean / inferencias / auditoría)
     pg_dsn: str
     # URL del servidor MLflow para tracking y registry
     mlflow_tracking_uri: str
@@ -23,10 +23,14 @@ class Settings:
     aws_access_key_id: str
     aws_secret_access_key: str
 
-    # Ruta al CSV fuente que la tarea de ingesta lee por lotes
-    source_csv: str
-    # Tamaño máximo del lote de ingesta (el enunciado fija el tope en 15.000)
-    batch_size: int
+    # API externa de datos (fuente de los lotes inmobiliarios)
+    data_api_url: str
+    # Número de grupo que la API usa para entregar el subconjunto de datos
+    data_api_group: int
+    # Timeout y reintentos del cliente HTTP de la API de datos
+    data_api_timeout: int
+    data_api_retries: int
+
     # Semilla para reproducibilidad del split y los modelos
     random_seed: int
 
@@ -34,8 +38,8 @@ class Settings:
     experiment_name: str
     registered_model_name: str
     champion_alias: str
-    # Nombre de la métrica que decide qué modelo se promueve (se loguea
-    # como `primary_metric` en cada run de MLflow)
+    # Nombre de la métrica que decide qué modelo se promueve. Para regresión
+    # de precios usamos MAE (menor es mejor); promote.py conoce la dirección.
     primary_metric: str
 
 
@@ -60,13 +64,18 @@ def load() -> Settings:
         ),
         aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", "minioadmin"),
         aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", "minioadmin123"),
-        source_csv=os.environ.get("SOURCE_CSV", "/data/Diabetes.csv"),
-        batch_size=int(os.environ.get("BATCH_SIZE", "15000")),
+        data_api_url=os.environ.get(
+            "DATA_API_URL",
+            "http://data-api-service.mlops.svc.cluster.local",
+        ),
+        data_api_group=int(os.environ.get("DATA_API_GROUP", "1")),
+        data_api_timeout=int(os.environ.get("DATA_API_TIMEOUT", "60")),
+        data_api_retries=int(os.environ.get("DATA_API_RETRIES", "4")),
         random_seed=int(os.environ.get("RANDOM_SEED", "42")),
-        experiment_name=os.environ.get("MLFLOW_EXPERIMENT", "diabetes-classification"),
-        registered_model_name=os.environ.get("MLFLOW_MODEL_NAME", "diabetes-classifier"),
+        experiment_name=os.environ.get("MLFLOW_EXPERIMENT", "real-estate-price"),
+        registered_model_name=os.environ.get("MLFLOW_MODEL_NAME", "property-price-regressor"),
         champion_alias=os.environ.get("CHAMPION_ALIAS", "champion"),
-        primary_metric=os.environ.get("PRIMARY_METRIC", "f1"),
+        primary_metric=os.environ.get("PRIMARY_METRIC", "mae"),
     )
 
 

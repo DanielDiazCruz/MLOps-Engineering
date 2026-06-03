@@ -1,24 +1,24 @@
-"""Split estratificado train / val / test (70 / 15 / 15).
+"""Split aleatorio train / val / test (70 / 15 / 15) para clean.properties_clean.
 
-El resultado se persiste en la columna `split` de clean.diabetes_clean
-para que el módulo de entrenamiento pueda recuperarlo después sin tener
-que rehacer la partición. Usamos la semilla configurada (`random_seed`)
-para garantizar reproducibilidad.
+El resultado se persiste en la columna `split` para que el entrenamiento lo
+recupere sin rehacer la partición. Se usa la semilla configurada
+(`random_seed`) para reproducibilidad.
 
-Procesamiento INCREMENTAL: solo se particionan las filas nuevas (las que
-tienen `split IS NULL`, recién escritas por preprocess). Las asignaciones
-existentes se preservan. Esto no solo es más rápido (no reescribe todo
-clean en cada run), sino más correcto: antes se re-particionaba todo en
-cada ejecución, de modo que una fila usada para entrenar podía pasar a test
-en el siguiente run (fuga de datos entre runs). Cada batch nuevo se reparte
-70/15/15 de forma independiente, así que la proporción global se mantiene.
+Como el problema es de REGRESIÓN (precio continuo), el split es aleatorio
+simple — no estratificado (la estratificación requiere clases discretas).
+
+Procesamiento INCREMENTAL: solo particiona las filas nuevas (`split IS NULL`,
+recién escritas por preprocess) y preserva las asignaciones existentes. Esto
+es más rápido (no reescribe todo clean) y evita fuga de datos entre runs
+(una fila de train nunca termina en test en una corrida posterior). Cada
+batch nuevo se reparte 70/15/15, así la proporción global se mantiene.
 """
 
 from __future__ import annotations
 
 import logging
 
-from psycopg2.extras import execute_batch
+from psycopg2.extras import execute_values
 from sklearn.model_selection import train_test_split
 
 from pipeline.config import load
@@ -28,55 +28,42 @@ logger = logging.getLogger(__name__)
 
 
 def run(batch_id: str | None = None) -> dict:
-    """Asigna train / val / test a las filas nuevas de clean.diabetes_clean.
-
-    Estratifica por la variable target para preservar la proporción de
-    clases en cada subconjunto (importa porque solo ~11% de las filas son
-    positivos). Si el batch nuevo tuviera una sola clase, cae a un split no
-    estratificado para no fallar.
-    """
+    """Asigna train / val / test a las filas nuevas de clean.properties_clean."""
     settings = load()
 
-    # Solo las filas sin split (las que acaba de escribir preprocess).
     with connect() as conn, conn.cursor() as cur:
-        cur.execute("SELECT id, target FROM clean.diabetes_clean WHERE split IS NULL")
-        rows = cur.fetchall()
+        cur.execute("SELECT id FROM clean.properties_clean WHERE split IS NULL")
+        ids = [r[0] for r in cur.fetchall()]
 
-    if not rows:
+    if not ids:
         summary = {"batch_id": batch_id, "train": 0, "val": 0, "test": 0,
                    "nota": "sin filas nuevas (split IS NULL)"}
         logger.info("split: nada que particionar — %s", summary)
         return summary
 
-    ids = [r[0] for r in rows]
-    y = [r[1] for r in rows]
-    # Estratificamos solo si hay al menos dos clases en el batch nuevo.
-    stratify = y if len(set(y)) > 1 else None
-
-    # Primer corte: 70% train del 30% restante (val + test).
-    ids_train, ids_tmp, y_train, y_tmp = train_test_split(
-        ids, y, test_size=0.30, random_state=settings.random_seed, stratify=stratify,
+    # Corte 1: 70% train vs 30% (val+test). Corte 2: ese 30% mitad y mitad.
+    ids_train, ids_tmp = train_test_split(
+        ids, test_size=0.30, random_state=settings.random_seed,
     )
-    # Segundo corte: dividimos ese 30% por la mitad → 15% val, 15% test.
-    stratify_tmp = y_tmp if len(set(y_tmp)) > 1 else None
-    ids_val, ids_test, _, _ = train_test_split(
-        ids_tmp, y_tmp, test_size=0.50, random_state=settings.random_seed, stratify=stratify_tmp,
+    ids_val, ids_test = train_test_split(
+        ids_tmp, test_size=0.50, random_state=settings.random_seed,
     )
 
     assignments = (
-        [(row_id, "train") for row_id in ids_train]
-        + [(row_id, "val") for row_id in ids_val]
-        + [(row_id, "test") for row_id in ids_test]
+        [(i, "train") for i in ids_train]
+        + [(i, "val") for i in ids_val]
+        + [(i, "test") for i in ids_test]
     )
 
-    # Persistimos el split solo de estas filas (execute_batch en bloques de
-    # 1000 para reducir el round-trip con Postgres).
     with connect() as conn, conn.cursor() as cur:
-        execute_batch(
+        # UPDATE masivo vía VALUES + join: rápido incluso con lotes grandes.
+        execute_values(
             cur,
-            "UPDATE clean.diabetes_clean SET split = %s WHERE id = %s",
-            [(s, i) for i, s in assignments],
-            page_size=1_000,
+            "UPDATE clean.properties_clean AS c SET split = v.split "
+            "FROM (VALUES %s) AS v(id, split) WHERE c.id = v.id",
+            [(i, s) for i, s in assignments],
+            template="(%s,%s)",
+            page_size=5_000,
         )
 
     summary = {

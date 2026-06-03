@@ -10,4 +10,4 @@ resources:
 images:
 - name: dandiazc/mlops-pf-ui
   newName: dandiazc/mlops-pf-ui
-  newTag: sha-d32e06dc717b5955072f3d292500d448d36120ab
+  newTag: sha-006fb903824f9e35ac019469ac4c3f021f0548ff

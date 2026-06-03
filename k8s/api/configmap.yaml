@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: mlops
+data:
+  MLFLOW_TRACKING_URI: http://mlflow-service.mlops.svc.cluster.local:5000
+  MLFLOW_S3_ENDPOINT_URL: http://minio-service.mlops.svc.cluster.local:9000
+  MLFLOW_MODEL_NAME: diabetes-classifier
+  CHAMPION_ALIAS: champion
+  MODEL_CACHE_TTL_SECONDS: "300"

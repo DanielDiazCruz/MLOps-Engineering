@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: mlops
+  labels:
+    app: mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      containers:
+        - name: mlflow
+          image: dandiazc/mlops-mlflow:v0.1.0
+          ports:
+            - containerPort: 5000
+              name: http
+          command:
+            - mlflow
+            - server
+            - --backend-store-uri=$(MLFLOW_BACKEND_STORE_URI)
+            - --default-artifact-root=s3://mlflow-artifacts/
+            - --host=0.0.0.0
+            - --port=5000
+          envFrom:
+            - configMapRef:
+                name: mlflow-config
+            - secretRef:
+                name: mlflow-secret
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            # /health puede tardar >1s al arrancar; con el default (1s) la probe
+            # falla y el pod parpadea sin estar realmente enfermo.
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3

@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.env
+.env
+airflow/logs/
+data/*.csv
+*.egg-info/
+CLAUDE.md
+.claude/

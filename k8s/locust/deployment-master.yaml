@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: locust-master
+  namespace: mlops
+  labels:
+    app: locust-master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: locust-master
+  template:
+    metadata:
+      labels:
+        app: locust-master
+    spec:
+      containers:
+        - name: locust
+          image: locustio/locust:2.24.0
+          command:
+            - locust
+            - -f
+            - /mnt/locust/locustfile.py
+            - --master
+            - --host
+            - http://api:8000
+          ports:
+            - containerPort: 8089
+              name: web
+            - containerPort: 5557
+              name: worker
+          volumeMounts:
+            - name: locust-script
+              mountPath: /mnt/locust
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8089
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8089
+            initialDelaySeconds: 20
+            periodSeconds: 20
+      volumes:
+        - name: locust-script
+          configMap:
+            name: locust-script

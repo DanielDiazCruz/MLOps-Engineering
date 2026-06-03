@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: mlops
+  labels:
+    app: api
+spec:
+  # 1 réplica en nodos con poca RAM (Docker Desktop ~8Gi). Cada pod ya corre
+  # 2 workers de uvicorn (ver command/args), suficiente para el load test.
+  # Sube a 2 si el nodo tiene memoria de sobra.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: api
+          image: dandiazc/mlops-api:v0.4.0
+          imagePullPolicy: IfNotPresent
+          # Override CMD para forzar 2 workers de uvicorn sin rebuild de la imagen.
+          # Con 1 worker el event loop se bloquea durante /predict (inferencia
+          # sklearn es CPU-bound) y la liveness probe falla bajo carga de Locust.
+          command: ["uvicorn"]
+          args: ["api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: api-config
+            - secretRef:
+                name: api-secret
+          resources:
+            requests:
+              cpu: 500m
+              memory: 768Mi
+            limits:
+              cpu: "2"
+              memory: 1500Mi
+          # /health es trivial (devuelve {"status":"ok"}), pero la API corre
+          # con un solo worker uvicorn y /predict puede saturar el event loop.
+          # Con timeoutSeconds=1 (default) la probe falla bajo carga aunque la
+          # app esté sana, kubelet manda SIGTERM y el pod se reinicia.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 6

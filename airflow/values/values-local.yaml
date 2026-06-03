@@ -1,0 +1,144 @@
+# Helm values for the official apache-airflow chart.
+# Apply with:
+#   helm repo add apache-airflow https://airflow.apache.org
+#   helm upgrade --install airflow apache-airflow/airflow \
+#     -n mlops -f airflow/values/values-local.yaml
+#
+# Replace <docker-user> in `images.airflow.repository` before installing.
+
+executor: LocalExecutor
+
+# Fixed secret key so JWT tokens stay valid across pod restarts.
+# Without this, Airflow 3.x regenerates the key on every restart and
+# task workers fail with "Invalid auth token: Signature verification failed".
+webserverSecretKey: "mlops2026-stable-secret-key-proyecto2"
+
+# Custom image that includes the pipeline package and DAG.
+# v2.0.3 is skipped — that build had a broken `packaging` pin
+# (`ImportError: cannot import name 'parse' from 'packaging.version'`)
+# which crashed the airflow init container.
+# v2.0.4 adds: RF n_estimators 200->100, numerics cast to float64 in train.
+# v2.1.0: el DAG entrena un solo modelo (LogisticRegression) en una única
+# tarea t_train -> t_promote, para acelerar el run (~5-6 min vs ~11.5 min).
+# v2.2.0: infer_signature se infiere sobre una muestra (200 filas) en vez de
+# todo el train. Era el cuello de botella REAL de t_train (~11-20 min, el fit
+# son ~2 s); con esto t_train baja a ~30 s. Ver scripts/profile_train.py.
+# v2.3.0: preprocess y split son INCREMENTALES (solo procesan/escriben el
+# batch nuevo, no todo el acumulado). Antes reescribían las ~75k filas de
+# clean cada run (~20-29 s c/u). Ver scripts/profile_preprocess.py.
+images:
+  airflow:
+    repository: dandiazc/mlops-airflow
+    tag: v2.3.0
+    pullPolicy: IfNotPresent
+
+# Re-use the project's PostgreSQL (DB `airflow` created by phase 1 init.sql).
+postgresql:
+  enabled: false
+
+data:
+  metadataSecretName: airflow-metadata
+
+# DAGs are baked into the image; disable git-sync.
+dags:
+  gitSync:
+    enabled: false
+  persistence:
+    enabled: false
+
+env:
+  - name: AIRFLOW__CORE__LOAD_EXAMPLES
+    value: "False"
+  - name: AIRFLOW__CORE__PARALLELISM
+    value: "8"
+  - name: AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG
+    value: "8"
+  - name: AIRFLOW__CORE__HOSTNAME_CALLABLE
+    value: "airflow.utils.net.get_host_ip_address"
+  - name: AIRFLOW__LOGGING__LOG_FETCH_TIMEOUT_SEC
+    value: "30"
+  - name: MLFLOW_TRACKING_URI
+    value: "http://mlflow-service.mlops.svc.cluster.local:5000"
+  - name: MLFLOW_S3_ENDPOINT_URL
+    value: "http://minio-service.mlops.svc.cluster.local:9000"
+  - name: SOURCE_CSV
+    value: "/opt/airflow/data/Diabetes.csv"
+  - name: BATCH_SIZE
+    value: "15000"
+
+# Credentials injected from Kubernetes Secret (not stored in plain text here).
+extraEnvFrom: |
+  - secretRef:
+      name: airflow-env-secret
+
+# Crea el usuario admin de la UI automáticamente (FabAuthManager).
+# Sin esto, el chart no crea ningún usuario y el login falla con
+# "Invalid login" porque la tabla de usuarios queda vacía.
+# (ruta nueva; antes era webserver.defaultUser, ahora deprecada)
+createUserJob:
+  defaultUser:
+    enabled: true
+    role: Admin
+    username: admin
+    password: admin
+    email: admin@example.com
+    firstName: admin
+    lastName: user
+
+webserver:
+  service:
+    type: ClusterIP
+  resources:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits:   { cpu: "1",  memory: 1Gi }
+
+# En Airflow 3.x el componente del UI/REST es "apiServer" (el pod airflow-api-server).
+# Bajo contención de CPU tardaba >60s en arrancar y la startupProbe lo mataba
+# (connection refused) → reinicios → "network error" al dar Trigger.
+# Damos ~5 min de gracia para arrancar y más margen a las probes en caliente.
+apiServer:
+  startupProbe:
+    timeoutSeconds: 20
+    periodSeconds: 10
+    failureThreshold: 30
+  livenessProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 10
+    periodSeconds: 15
+    failureThreshold: 10
+  readinessProbe:
+    initialDelaySeconds: 30
+    timeoutSeconds: 10
+    periodSeconds: 15
+    failureThreshold: 10
+
+scheduler:
+  resources:
+    # Límite de 12 CPU / 6Gi en un nodo de 8 CPU / 8Gi causaba sobre-commit
+    # (CPU limits 270%) y contención. Right-size a algo razonable para
+    # LocalExecutor entrenando lotes de 15k filas.
+    requests: { cpu: 500m, memory: 1Gi }
+    limits:   { cpu: "4",  memory: 3Gi }
+  livenessProbe:
+    timeoutSeconds: 30
+    periodSeconds: 60
+    failureThreshold: 10
+
+triggerer:
+  enabled: true
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+  # Su liveness corre `airflow jobs check`, que expiraba a los 20s bajo carga.
+  livenessProbe:
+    timeoutSeconds: 30
+    periodSeconds: 60
+    failureThreshold: 12
+
+workers:
+  replicas: 0  # LocalExecutor: no separate workers
+
+flower:
+  enabled: false
+
+

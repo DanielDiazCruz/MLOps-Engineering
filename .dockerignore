@@ -1,0 +1,16 @@
+.git
+.claude
+__pycache__
+**/__pycache__
+**/*.pyc
+**/*.pyo
+*.md
+k8s/
+observability/
+loadtest/
+scripts/
+docker/
+airflow/values/
+airflow/Dockerfile
+.gitignore
+MLOPS_Proyecto2_2026_1.pdf

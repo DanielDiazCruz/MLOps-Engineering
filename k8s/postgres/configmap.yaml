@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: mlops
+data:
+  POSTGRES_HOST: postgres-service
+  POSTGRES_PORT: "5432"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: mlops
+data:
+  01-databases.sql: |
+    -- Bases de datos lógicamente separadas para cada componente.
+    CREATE DATABASE airflow;
+    CREATE DATABASE mlflow;
+  02-schemas.sql: |
+    -- Las tres capas de datos requeridas por la spec viven en la base mlops
+    -- (creada por POSTGRES_DB) y se separan por schema.
+    \connect mlops
+    CREATE SCHEMA IF NOT EXISTS raw;
+    CREATE SCHEMA IF NOT EXISTS clean;
+    CREATE SCHEMA IF NOT EXISTS inference;

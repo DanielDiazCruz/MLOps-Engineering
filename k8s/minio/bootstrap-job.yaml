@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: minio-bootstrap
+  namespace: mlops
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app: minio-bootstrap
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: minio/mc:RELEASE.2024-11-21T17-21-54Z
+          envFrom:
+            - secretRef:
+                name: minio-secret
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              echo "waiting for minio..."
+              until mc alias set local http://minio-service:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null 2>&1; do
+                sleep 3
+              done
+              mc mb --ignore-existing local/mlflow-artifacts
+              mc anonymous set none local/mlflow-artifacts || true
+              mc ls local
+              echo "bootstrap done"

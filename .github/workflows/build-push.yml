@@ -1,0 +1,83 @@
+name: Build & Push images
+
+# Construye y publica las 3 imágenes propias del proyecto en DockerHub. Cada
+# imagen se etiqueta por SHA del commit (trazabilidad y GitOps) y, en main,
+# además como `latest`. Esto reemplaza los `docker build` manuales: el
+# entregable se despliega desde imágenes construidas por CI.
+#
+# La imagen de la API de datos (cristiandiaz13/mlops-puj:data-api-pf-v1) es del
+# docente y NO se reconstruye aquí.
+#
+# Secrets requeridos en el repo:
+#   - DOCKERHUB_USERNAME : usuario/namespace de DockerHub (p. ej. dandiazc)
+#   - DOCKERHUB_TOKEN    : access token de DockerHub con permiso de escritura
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch: {}
+
+concurrency:
+  group: build-push-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-push:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: pf-airflow
+            dockerfile: airflow/Dockerfile
+          - name: pf-api
+            dockerfile: docker/api/Dockerfile
+          - name: pf-ui
+            dockerfile: docker/ui/Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login a DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Metadatos (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/mlops-${{ matrix.name }}
+          tags: |
+            type=sha,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build & Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          sbom: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+      - name: Resumen
+        run: |
+          echo "### Imagen publicada: \`${{ secrets.DOCKERHUB_USERNAME }}/mlops-${{ matrix.name }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tags:" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.meta.outputs.tags }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

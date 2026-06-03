@@ -1,0 +1,58 @@
+name: CI
+
+# Validación de código en cada push y pull request. Es la primera puerta del
+# pipeline CI/CD: si la compilación falla, el workflow de build & push (que
+# depende de que main esté sano) no debería publicar imágenes rotas.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  lint-compile:
+    name: Compilación y sintaxis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Compilar (sintaxis) pipeline / api / ui
+        # py_compile detecta errores de sintaxis sin instalar dependencias
+        # pesadas (airflow, mlflow). Es una verificación rápida y barata.
+        run: |
+          python -m compileall -q pipeline api ui scripts
+
+      - name: Verificar requisitos de paridad de versiones (train↔serve)
+        # numpy/scikit-learn/mlflow deben coincidir entre el entorno de
+        # entrenamiento (airflow) y el de servicio (api); un desajuste rompe la
+        # deserialización del modelo en MLflow. Este chequeo lo hace explícito.
+        run: |
+          python - <<'PY'
+          import re, sys
+
+          def pins(path):
+              out = {}
+              for line in open(path, encoding="utf-8"):
+                  m = re.match(r"^\s*([A-Za-z0-9_.\-]+)\s*==\s*([^\s#]+)", line)
+                  if m:
+                      out[m.group(1).lower().replace("_", "-")] = m.group(2)
+              return out
+
+          air = pins("airflow/requirements.txt")
+          api = pins("api/requirements.txt")
+          mismatched = []
+          for pkg in ("numpy", "scikit-learn", "mlflow", "pandas"):
+              if pkg in air and pkg in api and air[pkg] != api[pkg]:
+                  mismatched.append(f"{pkg}: airflow={air[pkg]} api={api[pkg]}")
+          if mismatched:
+              print("ERROR: versiones train/serve desalineadas:")
+              print("\n".join(mismatched))
+              sys.exit(1)
+          print("OK: numpy/scikit-learn/mlflow/pandas alineados entre airflow y api")
+          PY

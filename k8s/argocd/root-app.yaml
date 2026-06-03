@@ -1,0 +1,27 @@
+# App-of-Apps: Application raíz que despliega las demás Applications.
+# Es el único objeto que se aplica a mano (bootstrap); a partir de aquí Argo CD
+# lee k8s/argocd/apps del repo y crea/gestiona una Application por componente.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlops-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/DanielDiazCruz/MLOps-Engineering.git
+    targetRevision: main
+    path: k8s/argocd/apps
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

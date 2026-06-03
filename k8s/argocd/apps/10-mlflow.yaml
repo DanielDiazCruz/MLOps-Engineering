@@ -1,0 +1,27 @@
+# Wave 1: MLflow (tracking + registry). Depende de PostgreSQL (backend store) y
+# MinIO (artefactos), por eso va después de foundations.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlops-mlflow
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/DanielDiazCruz/MLOps-Engineering.git
+    targetRevision: main
+    path: k8s/mlflow
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mlops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

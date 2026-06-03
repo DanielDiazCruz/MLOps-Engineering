@@ -1,0 +1,26 @@
+# Wave 2: Grafana (dashboards sobre Prometheus).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlops-grafana
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/DanielDiazCruz/MLOps-Engineering.git
+    targetRevision: main
+    path: k8s/grafana
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mlops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

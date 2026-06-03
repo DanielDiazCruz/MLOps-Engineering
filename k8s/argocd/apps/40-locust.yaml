@@ -1,0 +1,26 @@
+# Wave 4: Locust (pruebas de carga contra la API). Opcional; va al final.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlops-locust
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/DanielDiazCruz/MLOps-Engineering.git
+    targetRevision: main
+    path: k8s/locust
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mlops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

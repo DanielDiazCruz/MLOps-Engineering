@@ -1,0 +1,27 @@
+# Wave 0: namespace + capa de datos (PostgreSQL + MinIO). Todo lo demás depende
+# de esto, por eso va primero.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlops-foundations
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/DanielDiazCruz/MLOps-Engineering.git
+    targetRevision: main
+    path: k8s/foundations
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mlops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

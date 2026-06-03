@@ -1,0 +1,27 @@
+# Wave 1: API de datos del docente (fuente de los lotes inmobiliarios). Imagen
+# externa (cristiandiaz13/mlops-puj), no se reconstruye; solo se despliega.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlops-data-api
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/DanielDiazCruz/MLOps-Engineering.git
+    targetRevision: main
+    path: k8s/data-api
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mlops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

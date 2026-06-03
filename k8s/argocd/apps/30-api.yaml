@@ -1,0 +1,28 @@
+# Wave 3: API de inferencia (regresión de precio). Depende de MLflow (modelo
+# champion) y PostgreSQL (log de inferencias). La imagen la publica el CI
+# (dandiazc/mlops-pf-api); para producción este tag debería ser el SHA del CI.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mlops-api
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/DanielDiazCruz/MLOps-Engineering.git
+    targetRevision: main
+    path: k8s/api
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mlops
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

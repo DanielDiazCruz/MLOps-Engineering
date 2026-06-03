@@ -5,7 +5,7 @@
     { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0" }
   ],
   "annotations": { "list": [] },
-  "description": "MLOps Diabetes API - Observabilidad de inferencia",
+  "description": "MLOps - API de inferencia de precio inmobiliario · observabilidad",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -89,7 +89,7 @@
     },
     {
       "id": 4,
-      "title": "Errores Totales",
+      "title": "Predicciones Fallidas",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
@@ -109,8 +109,8 @@
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
       "targets": [
         {
-          "expr": "sum(http_requests_total{job=\"api\", status=~\"5..\"})",
-          "legendFormat": "Errores 5xx",
+          "expr": "sum(inference_predictions_total{status=\"error\"}) or vector(0)",
+          "legendFormat": "Fallidas",
           "refId": "A"
         }
       ]
@@ -139,7 +139,7 @@
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
       "targets": [
         {
-          "expr": "100 * sum(rate(http_requests_total{job=\"api\", status=~\"5..\"}[1m])) / sum(rate(http_requests_total{job=\"api\"}[1m]))",
+          "expr": "100 * (sum(inference_predictions_total{status=\"error\"}) or vector(0)) / clamp_min(sum(inference_predictions_total) or vector(1), 1)",
           "legendFormat": "Error rate",
           "refId": "A"
         }
@@ -147,16 +147,23 @@
     },
     {
       "id": 6,
-      "title": "Predicciones Totales por Clase",
+      "title": "Precio Predicho Promedio (USD)",
       "type": "stat",
       "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": { "defaults": { "unit": "short" } },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "value" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "unit": "currencyUSD",
+          "decimals": 0
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "textMode": "auto", "colorMode": "background" },
       "targets": [
         {
-          "expr": "sum(inference_predictions_total) by (prediction)",
-          "legendFormat": "Clase {{prediction}}",
+          "expr": "sum(inference_predicted_price_sum) / clamp_min(sum(inference_predicted_price_count), 1)",
+          "legendFormat": "Precio medio",
           "refId": "A"
         }
       ]
@@ -181,8 +188,8 @@
           "refId": "A"
         },
         {
-          "expr": "sum(rate(http_requests_total{job=\"api\", status=~\"5..\"}[1m]))",
-          "legendFormat": "RPS errores",
+          "expr": "sum(rate(inference_predictions_total{status=\"error\"}[1m])) or vector(0)",
+          "legendFormat": "RPS predicciones fallidas",
           "refId": "B"
         }
       ]
@@ -271,7 +278,7 @@
       "options": { "tooltip": { "mode": "multi" } },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=\"api\", status=~\"5..\"}[1m])) / sum(rate(http_requests_total{job=\"api\"}[1m]))",
+          "expr": "(sum(rate(inference_predictions_total{status=\"error\"}[5m])) or vector(0)) / clamp_min(sum(rate(inference_predictions_total[5m])), 0.0001)",
           "legendFormat": "Error rate",
           "refId": "A"
         }
@@ -330,11 +337,42 @@
           "refId": "B"
         }
       ]
+    },
+    {
+      "id": 13,
+      "title": "Distribución del Precio Predicho (p50 / p90 / p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 28 },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "custom": { "lineWidth": 2 }
+        }
+      },
+      "options": { "tooltip": { "mode": "multi" }, "legend": { "displayMode": "list" } },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(inference_predicted_price_bucket[5m])))",
+          "legendFormat": "precio p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.90, sum by (le) (rate(inference_predicted_price_bucket[5m])))",
+          "legendFormat": "precio p90",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(inference_predicted_price_bucket[5m])))",
+          "legendFormat": "precio p99",
+          "refId": "C"
+        }
+      ]
     }
   ],
   "refresh": "10s",
   "schemaVersion": 38,
-  "tags": ["mlops", "inference", "diabetes"],
+  "tags": ["mlops", "inference", "real-estate"],
   "templating": {
     "list": [
       {
@@ -348,7 +386,7 @@
   "time": { "from": "now-15m", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "MLOps - API de Inferencia Diabetes",
+  "title": "MLOps - API de Inferencia de Precio Inmobiliario",
   "uid": "mlops-api-observability",
-  "version": 1
+  "version": 2
 }

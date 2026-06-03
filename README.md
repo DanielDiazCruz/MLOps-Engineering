@@ -63,10 +63,11 @@ flowchart LR
             PR["Prometheus"] --> API
             GR["Grafana"] --> PR
         end
-        ARGO["Argo CD<br/>(GitOps)"] -.->|"sync"| K8s
     end
     GH["GitHub repo"] -->|"CI: build & push"| DH["DockerHub<br/>dandiazc/mlops-pf-*"]
-    GH -->|"manifiestos"| ARGO
+    GH -->|"manifiestos"| ARGO["Argo CD<br/>(GitOps)"]
+    DH -.->|"imágenes"| K8s
+    ARGO -.->|"sync"| K8s
 ```
 
 **Dos fases separadas:**

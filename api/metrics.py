@@ -10,12 +10,22 @@ from __future__ import annotations
 
 from prometheus_client import Counter, Gauge, Histogram
 
-# Contador de predicciones servidas, etiquetado por valor de salida.
-# Permite ver en Grafana el balance entre clase positiva y negativa.
+# Contador de predicciones servidas, etiquetado por estado (ok / error).
+# En regresión la salida es continua (precio), así que NO se etiqueta por
+# valor (haría explotar la cardinalidad de la métrica).
 PREDICTIONS_TOTAL = Counter(
     "inference_predictions_total",
-    "Total de predicciones servidas, etiquetadas por clase.",
-    ["prediction"],
+    "Total de predicciones servidas, etiquetadas por estado.",
+    ["status"],
+)
+
+# Histograma del precio predicho (dólares). Permite ver en Grafana la
+# distribución de las estimaciones que sirve el modelo.
+PREDICTED_PRICE = Histogram(
+    "inference_predicted_price",
+    "Distribución del precio predicho (USD).",
+    buckets=(50_000, 100_000, 200_000, 300_000, 500_000,
+             750_000, 1_000_000, 2_000_000, 5_000_000),
 )
 
 # Histograma del tiempo que pasa dentro de model.predict (excluye el

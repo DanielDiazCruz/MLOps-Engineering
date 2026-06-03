@@ -51,7 +51,7 @@ def load() -> Settings:
         ),
         aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", "minioadmin"),
         aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", "minioadmin123"),
-        registered_model_name=os.environ.get("MLFLOW_MODEL_NAME", "diabetes-classifier"),
+        registered_model_name=os.environ.get("MLFLOW_MODEL_NAME", "property-price-regressor"),
         champion_alias=os.environ.get("CHAMPION_ALIAS", "champion"),
         model_cache_ttl_seconds=int(os.environ.get("MODEL_CACHE_TTL_SECONDS", "300")),
     )

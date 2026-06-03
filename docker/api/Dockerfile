@@ -1,4 +1,4 @@
-# Build context = repo root: docker build -f docker/api/Dockerfile -t <user>/mlops-api:<tag> .
+# Build context = repo root: docker build -f docker/api/Dockerfile -t <user>/mlops-pf-api:<tag> .
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

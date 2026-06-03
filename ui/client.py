@@ -3,7 +3,7 @@
 Todas las llamadas de red desde la UI pasan por este módulo para que el
 manejo de errores, timeouts y la URL base se definan en un solo lugar.
 La UI nunca importa mlflow, psycopg2 o ningún driver de BD — toda la
-inferencia pasa por la API.
+inferencia y el historial pasan por la API.
 """
 
 from __future__ import annotations
@@ -41,3 +41,14 @@ def predict(features: dict[str, Any], timeout: int = 30) -> dict[str, Any]:
     )
     resp.raise_for_status()
     return resp.json()
+
+
+def get_training_history(limit: int = 20, timeout: int = 30) -> list[dict[str, Any]]:
+    """Devuelve las últimas corridas de entrenamiento (RF9) vía /training-history."""
+    resp = requests.get(
+        f"{_base()}/training-history",
+        params={"limit": limit},
+        timeout=timeout,
+    )
+    resp.raise_for_status()
+    return resp.json().get("rows", [])

@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: dandiazc/mlops-api:v0.4.0
+          image: dandiazc/mlops-pf-api:p4c
           imagePullPolicy: IfNotPresent
           # Override CMD para forzar 2 workers de uvicorn sin rebuild de la imagen.
           # Con 1 worker el event loop se bloquea durante /predict (inferencia

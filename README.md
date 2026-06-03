@@ -107,7 +107,7 @@ coinciden con los comentarios del código):
 | Orquestador | Apache Airflow 3.1.8 | `dandiazc/mlops-pf-airflow` | DAG con decisión de reentrenar; embebe `pipeline/` y los DAGs |
 | BD relacional | PostgreSQL 16 | `postgres:16` | Schemas `raw`, `clean`, `inference`, `audit` + DB `mlflow`, `airflow` |
 | Artifact store | MinIO | `minio/minio` | Bucket `mlflow-artifacts` |
-| Registro ML | MLflow 2.16.0 | `dandiazc/mlops-mlflow` | Backend PG + artifacts S3-compatible |
+| Registro ML | MLflow 2.16.0 | `dandiazc/mlops-pf-mlflow` | Backend PG + artifacts S3-compatible (imagen propia, build por CI) |
 | API inferencia | FastAPI + uvicorn | `dandiazc/mlops-pf-api` | `/predict /training-history /model-info /reload-model /metrics` |
 | UI | Streamlit | `dandiazc/mlops-pf-ui` | Formulario de propiedad + historial de entrenamiento |
 | Métricas | Prometheus | `prom/prometheus` | Scrape vía anotaciones del pod |

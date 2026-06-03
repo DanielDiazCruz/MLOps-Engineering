@@ -8,7 +8,7 @@ import uuid
 from contextlib import asynccontextmanager
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from api import db
@@ -74,7 +74,11 @@ def model_info() -> ModelInfo:
 
 
 @app.post("/reload-model", response_model=ModelInfo)
-def reload_model() -> ModelInfo:
+def reload_model(x_reload_token: str | None = Header(default=None)) -> ModelInfo:
+    # Endpoint administrativo protegido (RF7): si hay token configurado, exige
+    # la cabecera 'X-Reload-Token'. Sin token configurado queda abierto (dev).
+    if settings.reload_token and x_reload_token != settings.reload_token:
+        raise HTTPException(status_code=401, detail="token de recarga inválido o ausente")
     try:
         lm = get_cache().reload()
     except Exception as e:  # noqa: BLE001

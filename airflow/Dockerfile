@@ -16,4 +16,9 @@ COPY airflow/dags/ /opt/airflow/dags/
 COPY data/data/Diabetes.csv /opt/airflow/data/Diabetes.csv
 ENV PYTHONPATH=/opt/airflow
 
+# Commit del código que entró en la imagen. El CI lo pasa como build-arg y
+# train.py lo registra en MLflow (RF5: versión del código asociada al modelo).
+ARG GIT_COMMIT=unknown
+ENV GIT_COMMIT=${GIT_COMMIT}
+
 USER airflow

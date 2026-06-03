@@ -30,6 +30,7 @@ Métrica principal de promoción: **MAE** (menor es mejor).
 from __future__ import annotations
 
 import logging
+import os
 import tempfile
 from typing import Any
 
@@ -200,6 +201,9 @@ def run(batch_id: str | None = None, reason: str | None = None) -> dict:
                 "n_numeric": len(NUMERIC_FEATURES),
                 "n_categorical": len(CATEGORICAL_FEATURES),
                 "target_transform": "log1p",
+                # Versión del código que produjo el modelo (RF5). El CI inyecta
+                # GIT_COMMIT como ARG/ENV de la imagen; en local queda 'unknown'.
+                "git_commit": os.environ.get("GIT_COMMIT", "unknown"),
             })
             mlflow.log_metrics(metrics)
             if reason:

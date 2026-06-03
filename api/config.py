@@ -43,6 +43,9 @@ class Settings:
     # TTL del cache en memoria del modelo; tras vencerse, la siguiente
     # predicción re-resuelve el alias y recarga el modelo si cambió.
     model_cache_ttl_seconds: int
+    # Token para proteger el endpoint admin /reload-model (RF7). Si está vacío,
+    # el endpoint queda abierto (modo dev); en el cluster se inyecta por Secret.
+    reload_token: str
 
 
 def load() -> Settings:
@@ -68,6 +71,7 @@ def load() -> Settings:
         registered_model_name=os.environ.get("MLFLOW_MODEL_NAME", "property-price-regressor"),
         champion_alias=os.environ.get("CHAMPION_ALIAS", "champion"),
         model_cache_ttl_seconds=int(os.environ.get("MODEL_CACHE_TTL_SECONDS", "300")),
+        reload_token=os.environ.get("RELOAD_TOKEN", ""),
     )
     # Publicamos las credenciales en el entorno para que boto3 / mlflow
     # las usen al leer artefactos desde MinIO.

@@ -104,17 +104,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Instalar kustomize
-        run: |
-          curl -sSL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-          sudo mv kustomize /usr/local/bin/
-
       - name: Fijar el tag de imagen al SHA del commit
+        # Editamos el `newTag` con `yq` (preinstalado en ubuntu-latest) en lugar
+        # de `kustomize`: el instalador oficial de kustomize hace llamadas a la
+        # API de GitHub y falla de forma intermitente por rate-limit (el tar se
+        # queda sin archivo -> "Cannot open: No such file or directory"). yq no
+        # descarga nada, así que el bump es determinista.
         run: |
           TAG="sha-${{ github.sha }}"
-          NS="${{ secrets.DOCKERHUB_USERNAME }}"
           for c in api ui mlflow; do
-            ( cd "k8s/$c" && kustomize edit set image "dandiazc/mlops-pf-$c=${NS}/mlops-pf-$c:${TAG}" )
+            yq -i "(.images[] | select(.name == \"dandiazc/mlops-pf-$c\") | .newTag) = \"$TAG\"" "k8s/$c/kustomization.yaml"
           done
 
       - name: Commit & push (si hay cambios)

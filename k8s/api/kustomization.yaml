@@ -11,4 +11,4 @@ resources:
 images:
   - name: dandiazc/mlops-pf-api
     newName: dandiazc/mlops-pf-api
-    newTag: sha-26a3a6cf1213cde22f5429ecec78c7ed0548b7f0
+    newTag: sha-d2c433c7ff81bb1857ef052abc51ffbe16ed5a21

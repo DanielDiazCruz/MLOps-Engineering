@@ -2,12 +2,11 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: mlops
 resources:
-- configmap.yaml
-- deployment.yaml
-- service.yaml
-
+  - configmap.yaml
+  - deployment.yaml
+  - service.yaml
 # El tag lo actualiza el CI (job bump-manifests) al SHA del commit construido.
 images:
-- name: dandiazc/mlops-pf-ui
-  newName: dandiazc/mlops-pf-ui
-  newTag: sha-b9b6dfef76faf5b3cffc498fb91d9c614db6a177
+  - name: dandiazc/mlops-pf-ui
+    newName: dandiazc/mlops-pf-ui
+    newTag: sha-26a3a6cf1213cde22f5429ecec78c7ed0548b7f0
